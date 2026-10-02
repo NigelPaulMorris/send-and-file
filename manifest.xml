@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Send & File - asks where to file each sent email (a SimplyFile-style add-in for the new Outlook).
+  Before installing: replace every https://YOUR-HOST with the address where you host these files,
+  e.g. https://yourname.github.io/send-and-file   (no trailing slash)
+-->
+<OfficeApp xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
+           xmlns:mailappor="http://schemas.microsoft.com/office/mailappversionoverrides/1.0"
+           xsi:type="MailApp">
+  <Id>fafb1f50-165d-4d79-831f-aa09f013b560</Id>
+  <Version>1.0.0.0</Version>
+  <ProviderName>Send and File</ProviderName>
+  <DefaultLocale>en-GB</DefaultLocale>
+  <DisplayName DefaultValue="Send &amp; File"/>
+  <Description DefaultValue="Asks where to file each email as you send it, then moves it there from Sent Items."/>
+  <IconUrl DefaultValue="https://YOUR-HOST/assets/icon-64.png"/>
+  <HighResolutionIconUrl DefaultValue="https://YOUR-HOST/assets/icon-128.png"/>
+  <SupportUrl DefaultValue="https://YOUR-HOST/taskpane.html"/>
+  <AppDomains>
+    <AppDomain>https://YOUR-HOST</AppDomain>
+  </AppDomains>
+  <Hosts>
+    <Host Name="Mailbox"/>
+  </Hosts>
+  <Requirements>
+    <Sets>
+      <Set Name="Mailbox" MinVersion="1.1"/>
+    </Sets>
+  </Requirements>
+  <FormSettings>
+    <Form xsi:type="ItemRead">
+      <DesktopSettings>
+        <SourceLocation DefaultValue="https://YOUR-HOST/taskpane.html"/>
+        <RequestedHeight>250</RequestedHeight>
+      </DesktopSettings>
+    </Form>
+  </FormSettings>
+  <Permissions>ReadWriteMailbox</Permissions>
+  <Rule xsi:type="RuleCollection" Mode="Or">
+    <Rule xsi:type="ItemIs" ItemType="Message" FormType="Edit"/>
+    <Rule xsi:type="ItemIs" ItemType="Message" FormType="Read"/>
+  </Rule>
+  <DisableEntityHighlighting>false</DisableEntityHighlighting>
+
+  <VersionOverrides xmlns="http://schemas.microsoft.com/office/mailappversionoverrides" xsi:type="VersionOverridesV1_0">
+    <VersionOverrides xmlns="http://schemas.microsoft.com/office/mailappversionoverrides/1.1" xsi:type="VersionOverridesV1_1">
+      <Requirements>
+        <bt:Sets DefaultMinVersion="1.14">
+          <bt:Set Name="Mailbox"/>
+        </bt:Sets>
+      </Requirements>
+      <Hosts>
+        <Host xsi:type="MailHost">
+          <Runtimes>
+            <!-- HTML runtime is used by the new Outlook and Outlook on the web; the JS override is for classic Outlook on Windows -->
+            <Runtime resid="WebViewRuntime.Url">
+              <Override type="javascript" resid="JSRuntime.Url"/>
+            </Runtime>
+          </Runtimes>
+          <DesktopFormFactor>
+            <FunctionFile resid="Commands.Url"/>
+
+            <!-- Button when reading an email: file the open email, and keep filing sent mail while pinned -->
+            <ExtensionPoint xsi:type="MessageReadCommandSurface">
+              <OfficeTab id="TabDefault">
+                <Group id="sfReadGroup">
+                  <Label resid="GroupLabel"/>
+                  <Control xsi:type="Button" id="msgReadOpenPaneButton">
+                    <Label resid="ReadButton.Label"/>
+                    <Supertip>
+                      <Title resid="ReadButton.Label"/>
+                      <Description resid="ReadButton.Tooltip"/>
+                    </Supertip>
+                    <Icon>
+                      <bt:Image size="16" resid="Icon.16"/>
+                      <bt:Image size="32" resid="Icon.32"/>
+                      <bt:Image size="80" resid="Icon.80"/>
+                    </Icon>
+                    <Action xsi:type="ShowTaskpane">
+                      <SourceLocation resid="Taskpane.Url"/>
+                      <SupportsPinning>true</SupportsPinning>
+                    </Action>
+                  </Control>
+                </Group>
+              </OfficeTab>
+            </ExtensionPoint>
+
+            <!-- Button while writing an email. The send prompt opens this same pane (commandId below). -->
+            <ExtensionPoint xsi:type="MessageComposeCommandSurface">
+              <OfficeTab id="TabDefault">
+                <Group id="sfComposeGroup">
+                  <Label resid="GroupLabel"/>
+                  <Control xsi:type="Button" id="msgComposeOpenPaneButton">
+                    <Label resid="ComposeButton.Label"/>
+                    <Supertip>
+                      <Title resid="ComposeButton.Label"/>
+                      <Description resid="ComposeButton.Tooltip"/>
+                    </Supertip>
+                    <Icon>
+                      <bt:Image size="16" resid="Icon.16"/>
+                      <bt:Image size="32" resid="Icon.32"/>
+                      <bt:Image size="80" resid="Icon.80"/>
+                    </Icon>
+                    <Action xsi:type="ShowTaskpane">
+                      <SourceLocation resid="Taskpane.Url"/>
+                    </Action>
+                  </Control>
+                </Group>
+              </OfficeTab>
+            </ExtensionPoint>
+
+            <!-- Events: ask on send; tidy up earlier sends whenever a new email is started -->
+            <ExtensionPoint xsi:type="LaunchEvent">
+              <LaunchEvents>
+                <LaunchEvent Type="OnMessageSend" FunctionName="onMessageSendHandler" SendMode="PromptUser"/>
+                <LaunchEvent Type="OnNewMessageCompose" FunctionName="onNewMessageComposeHandler"/>
+              </LaunchEvents>
+              <SourceLocation resid="WebViewRuntime.Url"/>
+            </ExtensionPoint>
+          </DesktopFormFactor>
+        </Host>
+      </Hosts>
+      <Resources>
+        <bt:Images>
+          <bt:Image id="Icon.16" DefaultValue="https://YOUR-HOST/assets/icon-16.png"/>
+          <bt:Image id="Icon.32" DefaultValue="https://YOUR-HOST/assets/icon-32.png"/>
+          <bt:Image id="Icon.80" DefaultValue="https://YOUR-HOST/assets/icon-80.png"/>
+        </bt:Images>
+        <bt:Urls>
+          <bt:Url id="Commands.Url" DefaultValue="https://YOUR-HOST/commands.html"/>
+          <bt:Url id="Taskpane.Url" DefaultValue="https://YOUR-HOST/taskpane.html"/>
+          <bt:Url id="WebViewRuntime.Url" DefaultValue="https://YOUR-HOST/commands.html"/>
+          <bt:Url id="JSRuntime.Url" DefaultValue="https://YOUR-HOST/launchevent.js"/>
+        </bt:Urls>
+        <bt:ShortStrings>
+          <bt:String id="GroupLabel" DefaultValue="Send &amp; File"/>
+          <bt:String id="ReadButton.Label" DefaultValue="File email"/>
+          <bt:String id="ComposeButton.Label" DefaultValue="File when sent"/>
+        </bt:ShortStrings>
+        <bt:LongStrings>
+          <bt:String id="ReadButton.Tooltip" DefaultValue="Move this email to a folder. Pin the pane to keep filing your sent emails automatically."/>
+          <bt:String id="ComposeButton.Tooltip" DefaultValue="Choose the folder this email goes to after you send it."/>
+        </bt:LongStrings>
+      </Resources>
+    </VersionOverrides>
+  </VersionOverrides>
+</OfficeApp>

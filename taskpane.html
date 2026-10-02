@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Send &amp; File</title>
+  <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+  <script src="msal-browser.min.js"></script>
+  <script src="shared.js"></script>
+  <style>
+    :root {
+      --ink: #1F3A5F;
+      --ink-soft: #E7EDF5;
+      --manila: #E8C872;
+      --manila-soft: #FBF3DA;
+      --text: #1B1F24;
+      --muted: #5B6573;
+      --line: #DDE1E6;
+      --bg: #FFFFFF;
+      --ok: #2E6B3F;
+      --err: #A33A2B;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --ink: #9DB8DC; --ink-soft: #22303F; --manila: #C9A64B; --manila-soft: #3A3220;
+        --text: #E8EAED; --muted: #A3ACB8; --line: #3A4048; --bg: #1F2125;
+        --ok: #7FC48F; --err: #F08A7A;
+      }
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; background: var(--bg); color: var(--text); }
+    body {
+      font: 14px/1.45 "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
+      padding: 14px 14px 18px;
+    }
+    h1 { font-size: 15px; font-weight: 600; margin: 0 0 12px; }
+    h2 { font-size: 12.5px; font-weight: 600; color: var(--muted); margin: 16px 0 6px; }
+    p { margin: 0 0 8px; }
+    .hidden { display: none !important; }
+
+    /* The destination "folder tab": the one bold element in the pane */
+    .dest { position: relative; margin: 6px 0 14px; }
+    .dest .tab {
+      display: inline-block; padding: 3px 12px 2px; font-size: 12px; font-weight: 600;
+      background: var(--manila); color: #3B2F0E; border-radius: 6px 6px 0 0;
+    }
+    .dest .body {
+      background: var(--manila-soft); border: 1px solid var(--manila);
+      border-radius: 0 8px 8px 8px; padding: 10px 12px;
+    }
+    .dest .path { font-size: 15px; font-weight: 600; word-break: break-word; }
+    .dest .hint { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+    .dest.unset .tab { background: var(--line); color: var(--muted); }
+    .dest.unset .body { background: transparent; border-color: var(--line); }
+    .dest.unset .path { font-weight: 400; color: var(--muted); font-size: 14px; }
+
+    input[type=search] {
+      width: 100%; padding: 8px 10px; font: inherit; color: var(--text);
+      background: var(--bg); border: 1px solid var(--line); border-radius: 6px;
+    }
+    input[type=search]:focus { outline: 2px solid var(--ink); outline-offset: 0; border-color: var(--ink); }
+
+    ul.folders { list-style: none; margin: 0; padding: 0; }
+    ul.folders li button {
+      display: block; width: 100%; text-align: left; font: inherit; color: var(--text);
+      background: none; border: 0; border-radius: 5px; padding: 6px 8px; cursor: pointer;
+    }
+    ul.folders li button:hover, ul.folders li button:focus-visible { background: var(--ink-soft); outline: none; }
+    ul.folders li button:focus-visible { box-shadow: inset 0 0 0 2px var(--ink); }
+    .fname { display: block; font-weight: 600; }
+    .fparent { display: block; font-size: 12px; color: var(--muted); }
+    .why { font-size: 12px; color: var(--ink); }
+
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+    button.btn {
+      font: inherit; font-weight: 600; padding: 7px 14px; border-radius: 6px; cursor: pointer;
+      border: 1px solid var(--ink); background: var(--ink); color: var(--bg);
+    }
+    button.btn.quiet { background: transparent; color: var(--ink); }
+    button.btn:focus-visible { outline: 2px solid var(--manila); outline-offset: 2px; }
+
+    .msg { font-size: 13px; padding: 8px 10px; border-radius: 6px; margin: 8px 0; }
+    .msg.ok { color: var(--ok); background: color-mix(in srgb, var(--ok) 10%, transparent); }
+    .msg.err { color: var(--err); background: color-mix(in srgb, var(--err) 10%, transparent); }
+
+    footer { margin-top: 20px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+    footer ul { margin: 4px 0 0; padding-left: 16px; }
+    .empty { color: var(--muted); font-size: 13px; padding: 4px 8px; }
+  </style>
+</head>
+<body>
+  <main id="app">
+    <section id="signin" class="hidden">
+      <h1>Send &amp; File</h1>
+      <p>Sign in once so Send &amp; File can see your folders and move emails into them.</p>
+      <div class="actions"><button class="btn" id="signinBtn">Sign in</button></div>
+      <div id="signinErr"></div>
+    </section>
+
+    <section id="loading"><p class="empty">Loading your folders…</p></section>
+
+    <section id="main" class="hidden">
+      <h1 id="title">File this email when it's sent</h1>
+
+      <div id="dest" class="dest unset">
+        <span class="tab" id="destTab">Not filed yet</span>
+        <div class="body">
+          <div class="path" id="destPath">Pick a folder below</div>
+          <div class="hint" id="destHint"></div>
+        </div>
+      </div>
+
+      <div class="actions" id="composeActions">
+        <button class="btn quiet" id="noFileBtn">Don't file, keep in Sent Items</button>
+      </div>
+
+      <div id="status"></div>
+
+      <h2 id="searchLabel"><label for="q">Find a folder</label></h2>
+      <input type="search" id="q" placeholder="Type part of a folder name" autocomplete="off">
+      <ul class="folders" id="results"></ul>
+
+      <div id="suggestBlock" class="hidden">
+        <h2>Suggested</h2>
+        <ul class="folders" id="suggested"></ul>
+      </div>
+
+      <div id="recentBlock" class="hidden">
+        <h2>Recent</h2>
+        <ul class="folders" id="recent"></ul>
+      </div>
+
+      <footer>
+        <div id="sweepState">Sent emails are filed automatically while this pane is open.</div>
+        <ul id="sweepLog"></ul>
+        <div class="actions" style="margin-top:8px">
+          <button class="btn quiet" id="refreshBtn">Reload folders</button>
+        </div>
+      </footer>
+    </section>
+  </main>
+  <script src="taskpane.js"></script>
+</body>
+</html>
